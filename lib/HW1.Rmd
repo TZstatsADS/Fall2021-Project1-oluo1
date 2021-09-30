@@ -1,0 +1,115 @@
+---
+title: "Project1"
+author: "Orianne Luo"
+date: "9/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data<-read.csv(file = 'C:/Users/orian/Downloads/philosophy_data.csv/philosophy_data.csv')
+```
+
+Load all the required packages: 
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+What are all the schools, and how many authors do we have for each school? 
+```{r}
+data %>% group_by(school) %>% summarise(author_count=n_distinct(author))
+```
+
+What are the date ranges for these different schools? We can see that the original publication dates for these works are all pretty modern, except for Aristotle, Plato, and Stoicism. 
+```{r}
+boxplot(original_publication_date~school, data=data, main="Original Publication Date Ranges of Texts", xlab="School", ylab="Original Publication Date")
+```
+
+Question 1: Which philosophers have the longest sentences? 
+```{r}
+slength<-data %>% group_by(author) %>% summarize(mean_sentence_length=mean(sentence_length)) %>% arrange(desc(mean_sentence_length))
+
+slength
+```
+
+We can create a visualization of the mean sentence lengths of these different philosophers. As we can see from the visualization, Descartes had much longer sentences than the other philosophers, over 200 words on average, while Wittgenstein had shorter sentences on average than other philosophers, less than 90 words on average. Overall, the distribution looks slightly skewed to the left. 
+```{r}
+hist(slength$mean_sentence_length, main="Length of Sentences by Philosopher", xlab="School", ylab="Length of Sentence")
+```
+
+Does the year of publication affect sentence length? We can see a sharp increase in the average sentence length in the 1500s, and then a lot of variation in the sentence length into the present day. 
+```{r}
+slengthy<-data %>% group_by(original_publication_date) %>% summarize(mean_sentence_length=mean(sentence_length)) %>% arrange(desc(mean_sentence_length))
+
+ggplot(slengthy, aes(x=original_publication_date, y=mean_sentence_length)) +
+  geom_line() +
+  ggtitle("Length of Sentences Over Time")
+```
+
+Question 2: Which topics were philosophers of each school most interested in? Which topics were philosophers most interested in overall? We can explore this by looking at the most common words overall, and then by school. 
+```{r}
+library(tidytext)
+```
+
+```{r}
+data1 <- data %>% separate_rows(tokenized_txt) %>% filter(tokenized_txt!="")
+```
+After cleaning the data, count the number of times each word appears for each of the schools. I removed the stop words to get the most common words. It seems like overall, the philosophers were most interested in "time," "nature," "world," "reason," and "true." 
+```{r}
+data1 %>% group_by(tokenized_txt) %>% count() %>% arrange(desc(n)) %>% anti_join(stop_words, by=c("tokenized_txt"="word"))
+```
+
+As expected, we can see that there is a good deal of diversity in the most commonly mentioned words/topics among different philosopher schools. See the bottom of the notebook for a wordcloud for all of these schools. 
+```{r}
+data1 %>% anti_join(stop_words, by=c("tokenized_txt"="word")) %>% group_by(school, tokenized_txt) %>% count() %>% arrange(desc(n)) %>% group_by(school) %>% slice(1:5)
+```
+
+Question 3: How do different schools of thought think differently about certain topics? 
+
+Good: How do the different schools view Good differently? The Analytic school mainly relates good with "reason," "sense," and "true," indicating an emphasis on rationality. On the other hand, the Aristotle school most commonly draws comparisons with the other extreme, including words like "Bad" and "Evil," while also associating Good with "Excellence" and "Pleasure." The schools Capitalism and Communism mainly use "Good" in relation to products, as indicated by "price," "money," "time," and "production." The Continental school associates Good with "sense," "nature," and "common," implying an intrinsic existence. The Empiricism school juxtaposes Good with "Power" and "Evil," but also mentions "reason" and "nature," indicating an objective view of what is good. The school of Feminism most commonly mentions Good in relation to "woman," "women," and "mother." On the other hand, German idealism most commonly mentions Good with relation to "reason," "moral," "law," and "evil," indicating an importance placed on upholding what is good. The Nietzsche school most commonly mentioned good in relation with "evil," "god," and "people," indicating a higher level of good in relation with god. On the other hand, the Phenomenology mentions good in relation with "conscience," "life," and "reason," indicating an importance placed on adhering to Good. The school of Plato mentions Good in relation with "bad," "people," "city," and "soul," indicating an importance placed on bringing the people closer towards what is good. The school of Rationalism mentions good with relation more abstract concepts such as "god," "evil," and "love." Finally, the school of Stoicism mostly mentions good with relation to "thou," "doth," and "nature," indicating a more subjective emphasis placed on Good with respect to the reader. 
+```{r}
+data_good<-data1[grepl("good", data1$lemmatized_str, fixed = TRUE),]
+
+data_good %>% anti_join(stop_words, by=c("tokenized_txt"="word")) %>% filter(tokenized_txt!="good") %>% group_by(school, tokenized_txt) %>% count() %>% arrange(desc(n)) %>% group_by(school) %>% slice(1:5)
+
+```
+
+Nature: We can see that some schools, such as Analytic and Phenomenology, are much more scientific and consider "laws," "world," and "sense," while other groups, like Aristotle, are more concerned with more literal things like "animals" and "body." Similarly, Communism and Capitalism schools primarily view nature in relation to the economy. Plato, on the other hand, discusses nature mainly with relation to people, using the words "soul" and "human."   
+```{r}
+data_nature<-data1[grepl("nature", data1$lemmatized_str, fixed = TRUE),]
+
+data_nature %>% anti_join(stop_words, by=c("tokenized_txt"="word")) %>% filter(tokenized_txt!="nature") %>% group_by(school, tokenized_txt) %>% count() %>% arrange(desc(n)) %>% group_by(school) %>% slice(1:5)
+```
+
+True/Truth: We can see that many schools, especially Analytic and Aristotle, consider "false" in relation with truth. On the other hand, Capitalism and Communism still consider truth in relation with the economy, while Feminism still considers truth in relation with "woman." Empiricism considers truth with relation to "ideas" and "knowledge," while Phenomenology considers truth in relation to "world" and "knowledge." Similarly, the school of Plato also often mentions "knowledge" in relation to truth. 
+```{r}
+data_true1<-data1[grepl("true", data1$lemmatized_str, fixed = TRUE),]
+data_true2<-data1[grepl("truth", data1$lemmatized_str, fixed = TRUE),]
+
+data_true<-rbind(data_true1, data_true2)
+data_true %>% anti_join(stop_words, by=c("tokenized_txt"="word")) %>% filter(tokenized_txt!="true" & tokenized_txt!="truth") %>% group_by(school, tokenized_txt) %>% count() %>% arrange(desc(n)) %>% group_by(school) %>% slice(1:5)
+
+```
+
+Question 4: How has the commonness of certain topics changed over time? Look at the number of times that the word is mentioned among the excerpts for the year that the text was originally published. 
+```{r}
+top5<-data1 %>% group_by(tokenized_txt) %>% count() %>% arrange(desc(n)) %>% anti_join(stop_words, by=c("tokenized_txt"="word")) %>% head(5) %>% select(tokenized_txt)
+
+```
+
+```{r}
+data_count<-data1 %>% inner_join(top5, by="tokenized_txt") %>% group_by(tokenized_txt, original_publication_date) %>% count() %>% arrange(desc(n))
+```
+
+We can see that Nature and Time were very common words among earlier philosophers. There was also a spike in the number of occurrences of the words Reason and Nature in the 1700s and 1800s, likely as a response to the schools of philosophy that arose from the Enlightenment. The word World went from being a not very common word to becoming one of the most common words among modern philosophers. This indicates a shift in the focus of philosophers, from focusing mainly on more natural phenomena to the popularity of scientific thinking and reasoning, and finally a greater awareness of the world around us. 
+```{r}
+library(ggplot2)
+ggplot(data_count, aes(x=original_publication_date, y=n, group=tokenized_txt, color=tokenized_txt)) +
+  geom_line()
+```
+
